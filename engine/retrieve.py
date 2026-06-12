@@ -380,3 +380,38 @@ class MemoryIndex:
         if handle is None:
             return None
         return Engram.from_bytes(self.store.get_blob(self.space, handle))
+
+    def live_engrams(self) -> list[Engram]:
+        return [e for e in self._engrams.values() if not e.tombstoned]
+
+    # -- physical reclaim (§5) --------------------------------------------
+
+    def compact(self) -> int:
+        """Reclaim space the only way the substrate does: rewrite the live
+        engrams into a fresh planet and release the old one. The append-only
+        virtual disk has no per-blob free, so tombstoned blobs are reclaimed
+        wholesale here. Returns bytes freed by the release."""
+        live = self.live_engrams()
+        budget = next(
+            (s.budget for s in self.store.stats().spaces if s.space == self.space),
+            8 << 20,
+        )
+        old_space = self.space
+        new_space = self.store.open_space(budget)
+
+        # Reset the derived caches and re-commit live engrams into the new
+        # planet (fresh blob + index cells). The lexicon is rebuilt from the
+        # engrams' own definitions during re-commit.
+        self.space = new_space
+        self._engrams = {}
+        self._handles = {}
+        self._postings = {}
+        self._session_order = {}
+        self._lexicon = {}
+        for engram in live:
+            self.commit(engram)
+
+        freed = self.store.release_space(old_space)
+        METRICS.incr("compactions")
+        METRICS.record("reclaimed_bytes", float(freed))
+        return freed
