@@ -22,8 +22,8 @@ test-py:
 dev: kiokud  ## run the FastAPI engine (Qwen Cloud brain via .env)
 	$(PY) -m uvicorn engine.main:get_app --factory --reload --port 8000
 
-eval:  ## run the eval harness (arrives with build step 7)
-	@echo "make eval arrives with the eval harness (build step 7)"
+eval: kiokud  ## run fixtures -> eval/METRICS.md (10k-engram latency, recall accuracy)
+	$(PY) eval/run_eval.py --corpus 10000 --store auto
 
 demo: dev
 

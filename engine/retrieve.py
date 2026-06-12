@@ -40,6 +40,10 @@ log = logging.getLogger("kioku.retrieve")
 RECENCY_LAMBDA = 0.069
 # access_frequency saturates here: enough reinforcement is enough.
 ACCESS_SATURATION = 8.0
+# Vector pages are scanned over a recent working-set window, not the whole
+# corpus — keyword/entity cells (O(1) shift+mask) carry unbounded reach, so
+# retrieval stays fast as memory grows. Documented in docs/MEMORY_MODEL.md.
+VECTOR_SCAN_WINDOW = 1024
 # Rough token estimate: ~4 chars/token. Good enough to hold a budget.
 CHARS_PER_TOKEN = 4
 
@@ -118,6 +122,7 @@ class MemoryIndex:
         self._handles: dict[str, BlobHandle] = {}
         self._postings: dict[int, list[str]] = {}  # term cell -> engram ids
         self._session_order: dict[str, list[str]] = {}  # session -> engram ids, oldest first
+        self._order: list[str] = []  # global insertion order (vector working set)
         self._lexicon: dict[str, str] = {}  # term -> definition (curiosity, §3.4)
 
     # -- commit (§3.5) ----------------------------------------------------
@@ -141,6 +146,7 @@ class MemoryIndex:
 
             self._engrams[engram.engram_id] = engram
             self._handles[engram.engram_id] = handle
+            self._order.append(engram.engram_id)
             for term in terms:
                 self._postings.setdefault(keyword_cell(term), []).append(engram.engram_id)
             self._session_order.setdefault(engram.session_id, []).append(engram.engram_id)
@@ -199,10 +205,11 @@ class MemoryIndex:
                 for eid in self._postings.get(cell, []):
                     candidates.setdefault(eid, "keyword")
 
-            # (b) cosine over vector pages.
+            # (b) cosine over vector pages — bounded to the recent working set
+            # so latency does not grow with the whole corpus.
             if query_embedding:
-                for eid, engram in self._engrams.items():
-                    if engram.embedding:
+                for eid in self._order[-VECTOR_SCAN_WINDOW:]:
+                    if self._engrams[eid].embedding:
                         candidates.setdefault(eid, "vector")
 
             # (c) session-recency walk: the last few turns of this session.
@@ -412,6 +419,7 @@ class MemoryIndex:
         self._handles = {}
         self._postings = {}
         self._session_order = {}
+        self._order = []
         self._lexicon = {}
         for engram in live:
             self.commit(engram)

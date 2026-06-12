@@ -1,0 +1,35 @@
+{
+  "description": "Scripted teaching sessions + cross-session recall probes. Each turn carries the decomposition fields directly so accuracy/latency are measured on Kioku's retrieval substrate without depending on a live LLM. With a Qwen key present, run_eval also runs a few real turns end-to-end.",
+  "sessions": [
+    {
+      "session_id": "s-onboarding",
+      "turns": [
+        {"message": "Hi! My name is Aiko and I live in Kyoto.", "meaning": "The user's name is Aiko and she lives in Kyoto.", "keywords": ["name", "kyoto", "aiko"], "entities": ["Aiko", "Kyoto"], "importance": 0.95, "facts": ["name is Aiko", "lives in Kyoto"]},
+        {"message": "I'm a backend engineer and I love hanami season.", "meaning": "The user is a backend engineer who loves hanami.", "keywords": ["engineer", "hanami", "work"], "entities": [], "importance": 0.85, "likes": ["hanami"], "facts": ["works as a backend engineer"]},
+        {"message": "I'm allergic to peanuts, please remember that.", "meaning": "The user is allergic to peanuts.", "keywords": ["allergy", "peanuts", "health"], "entities": ["peanuts"], "importance": 0.98, "facts": ["allergic to peanuts"]}
+      ]
+    },
+    {
+      "session_id": "s-planning",
+      "turns": [
+        {"message": "I'm planning a flower-viewing trip this June.", "meaning": "The user is planning a hanami trip in June.", "keywords": ["hanami", "trip", "june"], "entities": ["June"], "importance": 0.7, "likes": ["hanami"]},
+        {"message": "I prefer quiet temples over crowded spots.", "meaning": "The user prefers quiet temples to crowds.", "keywords": ["temples", "quiet", "preference"], "entities": [], "importance": 0.6, "likes": ["quiet temples"], "dislikes": ["crowds"]},
+        {"message": "What's the weather usually like then?", "meaning": "The user asked about typical June weather.", "keywords": ["weather", "june"], "entities": [], "importance": 0.15}
+      ]
+    },
+    {
+      "session_id": "s-smalltalk",
+      "turns": [
+        {"message": "haha that's funny", "meaning": "The user laughed.", "keywords": ["laugh"], "entities": [], "importance": 0.05},
+        {"message": "ok thanks", "meaning": "The user thanked the assistant.", "keywords": ["thanks"], "entities": [], "importance": 0.05}
+      ]
+    }
+  ],
+  "probes": [
+    {"probe_session": "p-1", "query": "What's my name and where do I live?", "expect_keywords": ["name", "kyoto"], "expect_substr": "Aiko"},
+    {"probe_session": "p-2", "query": "Remind me about my peanut allergy.", "expect_keywords": ["allergy", "peanuts"], "expect_substr": "peanuts"},
+    {"probe_session": "p-3", "query": "Tell me about my hanami trip.", "expect_keywords": ["hanami", "trip"], "expect_substr": "hanami"},
+    {"probe_session": "p-4", "query": "Do I like crowded places?", "expect_keywords": ["quiet", "temples"], "expect_substr": "quiet temples"},
+    {"probe_session": "p-5", "query": "What kind of work do I do?", "expect_keywords": ["engineer", "work"], "expect_substr": "engineer"}
+  ]
+}
