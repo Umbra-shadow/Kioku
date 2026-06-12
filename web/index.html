@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Kioku 記憶 — a living memory for any LLM</title>
+  <meta name="description" content="Kioku gives any LLM a living memory on Cadran virtual hardware. Same Qwen model, same key — only the memory differs." />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>記</text></svg>" />
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="brand">
+        <span class="kanji" aria-hidden="true">記憶</span>
+        <span class="name">Kioku</span>
+        <span class="ver">v1</span>
+      </div>
+      <p class="tagline">It doesn't store messages — it <b>understands</b> them. Same Qwen model, same key on both sides. <b>Only the memory differs.</b></p>
+      <div class="top-actions">
+        <span class="mind-chip" id="mindChip" title="Your mind token (localStorage)">mind: shared</span>
+        <button class="btn ghost" id="newMindBtn" aria-label="Start a new mind with empty memory">+ New mind</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="arena" aria-label="Conversation arena">
+        <div class="panes">
+          <div class="pane kioku" aria-label="Qwen with Kioku memory">
+            <div class="pane-head"><span class="dot"></span> Qwen + Kioku <span class="sub">remembers you</span></div>
+            <div class="log" id="logKioku"><p class="empty-hint">Tell me something about yourself, then ask me about it in a new session. I'll remember.</p></div>
+          </div>
+          <div class="pane raw" aria-label="Qwen with no memory">
+            <div class="pane-head"><span class="dot"></span> Qwen raw <span class="sub">no memory</span></div>
+            <div class="log" id="logRaw"><p class="empty-hint">The same model, the same key — but every turn starts from nothing.</p></div>
+          </div>
+        </div>
+
+        <form class="composer" id="composer">
+          <div class="composer-row">
+            <textarea id="input" rows="1" placeholder="Say something to both…" aria-label="Message" autocomplete="off"></textarea>
+            <button type="submit" class="btn primary" id="sendBtn">Send ⏎</button>
+          </div>
+          <div class="composer-opts">
+            <label class="toggle"><input type="checkbox" id="bothToggle" checked aria-label="Send to both panes" /> ⇉ send to both</label>
+            <button type="button" class="btn probe" id="probeBtn" title="Ask both panes what they remember about you">🔎 recall probe</button>
+            <span class="muted" id="status"></span>
+          </div>
+        </form>
+      </section>
+
+      <aside class="inspector" aria-label="Memory inspector">
+        <div class="insp-tabs" role="tablist">
+          <button role="tab" data-tab="pipeline" aria-selected="true">Pipeline</button>
+          <button role="tab" data-tab="memory" aria-selected="false">Memory</button>
+          <button role="tab" data-tab="lexicon" aria-selected="false">Lexicon</button>
+          <button role="tab" data-tab="forgetting" aria-selected="false">Forgetting</button>
+          <button role="tab" data-tab="substrate" aria-selected="false">Substrate</button>
+        </div>
+        <div class="insp-body">
+          <div class="panel active" id="panel-pipeline">
+            <h3>A memory forming, live</h3>
+            <div class="chips" id="chips">
+              <span class="chip" data-stage="captured">captured</span>
+              <span class="chip" data-stage="decomposed">decomposed</span>
+              <span class="chip" data-stage="embedded">embedded</span>
+              <span class="chip curious" data-stage="curious">curious</span>
+              <span class="chip" data-stage="committed">committed</span>
+            </div>
+            <div class="address" id="address"><span class="lbl">physical address</span>—</div>
+            <div class="event-feed" id="eventFeed"></div>
+          </div>
+
+          <div class="panel" id="panel-memory">
+            <h3>Engrams <span class="muted" id="memCount"></span></h3>
+            <div class="mem-list" id="memList"><p class="muted">No memories yet.</p></div>
+          </div>
+
+          <div class="panel" id="panel-lexicon">
+            <h3>Lexicon — what curiosity looked up</h3>
+            <div class="lex-list" id="lexList"><p class="muted">Kioku hasn't been curious yet.</p></div>
+          </div>
+
+          <div class="panel" id="panel-forgetting">
+            <h3>Retention & forgetting</h3>
+            <button class="btn ghost danger" id="consolidateBtn" style="margin-bottom:12px">⟳ Consolidate now</button>
+            <div id="consoDiff" class="card" style="display:none;margin-bottom:12px"></div>
+            <div class="ret-list" id="retList"><p class="muted">Nothing to forget yet.</p></div>
+          </div>
+
+          <div class="panel" id="panel-substrate">
+            <h3>Cadran substrate gauge</h3>
+            <div class="gauge" id="gauge"><p class="muted">Loading…</p></div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="bottom">
+      <strong>Kioku v1</strong> — built on <span class="gold">Cadran virtual hardware</span> · Guardianity
+    </footer>
+  </div>
+
+  <div class="modal-back" id="modalBack">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Engram detail">
+      <button class="btn ghost x" id="modalClose" aria-label="Close">✕</button>
+      <h3 id="modalTitle">Engram</h3>
+      <pre id="modalBody"></pre>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
