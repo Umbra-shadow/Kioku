@@ -1,0 +1,21 @@
+# secrets — never committed
+.env
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# substrate artifacts
+*.disk
+*.sock
+kioku_data/
+substrate/kiokud
+substrate/kiokud_tests
+substrate/cadran_engine
+substrate/cadran_tests
+
+# editors
+.idea/
+.vscode/
