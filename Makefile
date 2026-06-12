@@ -19,8 +19,8 @@ test-rust:
 test-py:
 	$(PY) -m pytest
 
-dev:  ## run the engine (arrives with build step 5)
-	@echo "make dev arrives with the FastAPI engine (build step 5)"
+dev: kiokud  ## run the FastAPI engine (Qwen Cloud brain via .env)
+	$(PY) -m uvicorn engine.main:get_app --factory --reload --port 8000
 
 eval:  ## run the eval harness (arrives with build step 7)
 	@echo "make eval arrives with the eval harness (build step 7)"

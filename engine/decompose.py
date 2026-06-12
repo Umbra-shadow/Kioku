@@ -123,6 +123,31 @@ def _engram_from_raw(capture: Capture, raw: dict[str, Any]) -> Engram:
     return engram
 
 
+_STOPWORDS = frozenset(
+    "the a an and or but is are was were be been being to of in on at for with "
+    "i you he she it we they me my your his her its our their this that these "
+    "those do does did have has had will would can could should what when where "
+    "who why how about as if so not no yes ok do not from by".split()
+)
+
+
+def lite_keywords(text: str, limit: int = 8) -> list[str]:
+    """Decompose-lite (§4.1): cheap local keyword extraction for the query's
+    shift+mask cell probes. No LLM call — the query is also embedded separately."""
+    out: list[str] = []
+    token = ""
+    for ch in text.lower():
+        if ch.isalnum() or ch in "-_'":
+            token += ch
+        else:
+            if len(token) >= 3 and token not in _STOPWORDS and token not in out:
+                out.append(token)
+            token = ""
+    if len(token) >= 3 and token not in _STOPWORDS and token not in out:
+        out.append(token)
+    return out[:limit]
+
+
 async def decompose_exchange(
     qwen: QwenClient,
     capture: Capture,

@@ -384,6 +384,11 @@ class MemoryIndex:
     def live_engrams(self) -> list[Engram]:
         return [e for e in self._engrams.values() if not e.tombstoned]
 
+    def session_last(self, session_id: str) -> str | None:
+        """The most recent engram id in a session — the link for the next turn."""
+        order = self._session_order.get(session_id)
+        return order[-1] if order else None
+
     # -- physical reclaim (§5) --------------------------------------------
 
     def compact(self) -> int:
