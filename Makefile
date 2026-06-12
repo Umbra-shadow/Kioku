@@ -1,6 +1,6 @@
 # Kioku v1 — make dev / test / eval / demo / deploy
 
-PY ?= python3
+PY ?= $(shell test -x .venv/bin/python && echo .venv/bin/python || echo python3)
 RUSTC ?= rustc --edition=2021
 
 .PHONY: dev test test-rust test-py eval demo deploy kiokud clean

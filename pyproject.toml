@@ -9,3 +9,4 @@ license = { text = "Apache-2.0" }
 testpaths = ["engine/tests"]
 pythonpath = ["."]
 addopts = "-q"
+asyncio_mode = "auto"
