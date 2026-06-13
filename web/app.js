@@ -2,9 +2,12 @@
    API base: ?api=… query param, else window.KIOKU_API, else same origin :8000. */
 "use strict";
 
+// API base: ?api=… wins; then window.KIOKU_API; else same origin (the engine
+// serves this page and /api together). For a separately-hosted page, set
+// window.KIOKU_API before this script loads.
 const API = (new URLSearchParams(location.search).get("api")
   || window.KIOKU_API
-  || (location.port === "8000" ? location.origin : location.origin.replace(/:\d+$/, "") + ":8000")
+  || (location.protocol === "file:" ? "http://localhost:8000" : location.origin)
 ).replace(/\/$/, "");
 
 const $ = (id) => document.getElementById(id);

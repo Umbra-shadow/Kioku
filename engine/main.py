@@ -25,6 +25,9 @@ from typing import Any
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
+
+from engine.config import REPO_ROOT
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
@@ -340,6 +343,12 @@ def create_app(engine: KiokuEngine | None = None) -> FastAPI:
             "counters": METRICS.snapshot()["counters"],
             "tenant": mind.tenant_id,
         }
+
+    # Serve the web arena at the root, same-origin with the API, so the browser
+    # never needs a separate host/port. Mounted last: API routes take priority.
+    web_dir = REPO_ROOT / "web"
+    if web_dir.is_dir():
+        app.mount("/", StaticFiles(directory=str(web_dir), html=True), name="web")
 
     return app
 

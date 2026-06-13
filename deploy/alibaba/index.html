@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Host Kioku 記憶 on Alibaba Cloud</title>
+<meta name="description" content="Run Kioku — a living memory for any LLM — on Alibaba Cloud ECS, with Qwen Cloud (Model Studio) as the brain. One image, one command." />
+<style>
+  :root{
+    --bg:#0b0d10; --bg1:#11151a; --bg2:#161b22; --line:#232a33;
+    --ink:#e6edf3; --dim:#93a1b0; --faint:#5c6a78;
+    --amber:#f5b659; --amber2:#d98e2b; --teal:#4fd1c5; --violet:#b08cff; --green:#5fd38b;
+    --ali:#ff6a00; /* Alibaba Cloud orange */
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:
+      radial-gradient(1100px 540px at 85% -10%,#1b2330 0,transparent 60%),
+      radial-gradient(900px 480px at -10% 110%,#241a12 0,transparent 55%),
+      var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:var(--amber)}
+  .wrap{max-width:980px;margin:0 auto;padding:0 20px}
+  header{padding:54px 0 24px;border-bottom:1px solid var(--line)}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--faint);
+    border:1px solid var(--line);border-radius:999px;padding:5px 12px;margin-bottom:18px}
+  .eyebrow .blip{width:8px;height:8px;border-radius:50%;background:var(--ali);box-shadow:0 0 12px var(--ali)}
+  h1{font-size:clamp(30px,5vw,48px);line-height:1.1;margin:.1em 0 .3em}
+  h1 .kanji{color:var(--amber)} h1 .ali{color:var(--ali)}
+  .lede{font-size:18px;color:var(--dim);max-width:680px}
+  .lede b{color:var(--ink)}
+  .cta{display:flex;gap:12px;flex-wrap:wrap;margin:26px 0 8px}
+  .btn{min-height:46px;padding:0 20px;border-radius:11px;border:1px solid var(--line);background:var(--bg2);
+    color:var(--ink);font-weight:650;font-size:14px;display:inline-flex;align-items:center;gap:9px;text-decoration:none}
+  .btn.primary{background:linear-gradient(180deg,var(--ali),#d85700);border:none;color:#1a0e04}
+  .btn:hover{border-color:var(--ali)}
+  section{padding:40px 0;border-bottom:1px solid var(--line)}
+  h2{font-size:24px;margin:0 0 6px} .sub{color:var(--faint);margin:0 0 22px;font-size:14px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .card h3{margin:0 0 6px;font-size:16px}
+  .card.ali h3{color:var(--ali)} .card.amber h3{color:var(--amber)} .card.teal h3{color:var(--teal)}
+  .card p{margin:0;color:var(--dim);font-size:14px}
+  .flow{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap}
+  .node{flex:1;min-width:150px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .node .k{font-family:var(--mono);font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em}
+  .node .v{font-weight:650;margin-top:4px}
+  .node .d{color:var(--dim);font-size:13px;margin-top:6px}
+  .node.brain{border-color:#2c3a23} .node.brain .v{color:var(--green)}
+  .node.host{border-color:#3a2a16} .node.host .v{color:var(--ali)}
+  .arrow{align-self:center;color:var(--faint);font-size:22px}
+  ol.steps{counter-reset:s;list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}
+  ol.steps li{counter-increment:s;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px 16px 14px 54px;position:relative}
+  ol.steps li::before{content:counter(s);position:absolute;left:14px;top:14px;width:26px;height:26px;border-radius:50%;
+    background:var(--ali);color:#1a0e04;font-weight:700;display:grid;place-items:center;font-size:13px}
+  ol.steps b{color:var(--ink)}
+  pre{background:#06080a;border:1px solid var(--line);border-radius:12px;padding:14px;overflow:auto;
+    font-family:var(--mono);font-size:13px;color:var(--ink);margin:10px 0 0}
+  pre .c{color:var(--faint)} pre .o{color:var(--ali)} pre .a{color:var(--amber)}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .metric{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center}
+  .metric .n{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--amber)}
+  .metric .l{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+  footer{padding:30px 0 50px;color:var(--faint);font-size:13px;text-align:center}
+  footer .gold{color:var(--amber2)}
+  @media(max-width:760px){.grid,.metrics{grid-template-columns:1fr 1fr}.arrow{transform:rotate(90deg)}}
+  @media(max-width:480px){.grid,.metrics{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="eyebrow"><span class="blip"></span> Alibaba Cloud · ECS + Qwen Cloud (Model Studio)</span>
+    <h1>Host <span class="kanji">記憶</span> Kioku on <span class="ali">Alibaba&nbsp;Cloud</span></h1>
+    <p class="lede">Kioku gives any LLM a <b>living memory</b> — it doesn't store messages, it
+      <b>understands</b> them, on a 1&nbsp;TiB&nbsp;/&nbsp;4&nbsp;TiB Cadran virtual-hardware substrate.
+      The brain is <b>Qwen Cloud</b>. The host is <b>Alibaba Cloud ECS</b>. One image, one command.</p>
+    <div class="cta">
+      <a class="btn primary" href="#deploy">▸ Deploy in 6 steps</a>
+      <a class="btn" href="../../README.md">Read the docs</a>
+      <a class="btn" href="PROOF.md">Qwen Cloud proof</a>
+    </div>
+  </header>
+
+  <section>
+    <h2>Why Alibaba Cloud</h2>
+    <p class="sub">The model and the metal, from one provider, in one region — low latency, no egress surprises.</p>
+    <div class="grid">
+      <div class="card ali"><h3>Qwen Cloud is the brain</h3><p>Every call — decomposition, curiosity, consolidation, embeddings, the answer — goes to Qwen models on the Model Studio OpenAI-compatible endpoint. <code>qwen-max</code> + <code>text-embedding-v3</code>.</p></div>
+      <div class="card amber"><h3>ECS runs the substrate</h3><p>The Rust <code>kiokud</code> daemon owns a 1&nbsp;TiB sparse vRAM universe and a 4&nbsp;TiB virtual disk — committed only on touch. Small outside, huge inside.</p></div>
+      <div class="card teal"><h3>One region, one hop</h3><p>Put the ECS instance in the same region as your Model Studio endpoint and the brain is a millisecond away. Substrate state lives on a persistent volume.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The shape of it</h2>
+    <p class="sub">Browser → ECS (engine + arena + Cadran substrate) → Qwen Cloud.</p>
+    <div class="flow">
+      <div class="node"><div class="k">Browser</div><div class="v">Web arena</div><div class="d">Dual panes: Qwen+Kioku vs Qwen raw. Same key — only memory differs.</div></div>
+      <div class="arrow">→</div>
+      <div class="node host"><div class="k">Alibaba Cloud ECS</div><div class="v">kioku:v1 container</div><div class="d">FastAPI engine + web on :8000, Rust kiokud daemon, /data volume.</div></div>
+      <div class="arrow">→</div>
+      <div class="node brain"><div class="k">Qwen Cloud</div><div class="v">Model Studio</div><div class="d">qwen-max · text-embedding-v3, OpenAI-compatible.</div></div>
+    </div>
+  </section>
+
+  <section id="deploy">
+    <h2>Deploy in 6 steps</h2>
+    <p class="sub">From zero to a public arena. Full detail in <a href="PROOF.md">PROOF.md</a>.</p>
+    <ol class="steps">
+      <li><b>Create an ECS instance</b> — Ubuntu 22.04, ≥ 2&nbsp;GiB RAM (e.g. <code>ecs.t6-c1m2.large</code>), with a public IP.</li>
+      <li><b>Open the security group</b> — allow inbound TCP <b>8000</b> (app) and <b>22</b> (SSH).</li>
+      <li><b>Install Docker</b> on the instance: <code>curl -fsSL https://get.docker.com | sh</code></li>
+      <li><b>Get a Qwen key</b> from Model Studio and put it in <code>.env</code> as <code>QWEN_API_KEY</code>.</li>
+      <li><b>Ship it</b> from your machine:
+        <pre><span class="c"># builds the image (Rust kiokud + engine + arena) and runs it on the instance</span>
+<span class="o">./deploy/alibaba/deploy.sh</span> ecs ubuntu@<span class="a">&lt;public-ip&gt;</span></pre>
+      </li>
+      <li><b>Verify</b> the substrate is live on Alibaba Cloud:
+        <pre><span class="o">curl</span> http://<span class="a">&lt;public-ip&gt;</span>:8000/api/health
+<span class="c">→ {"ok":true,"backend":"kiokud","version":"0.1.0"}</span></pre>
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>What you get, measured</h2>
+    <p class="sub">From a real <code>make eval</code> run on the kiokud backend (<a href="../../eval/METRICS.md">eval/METRICS.md</a>) — nothing hand-written.</p>
+    <div class="metrics">
+      <div class="metric"><div class="n">100%</div><div class="l">cross-session recall</div></div>
+      <div class="metric"><div class="n">33 ms</div><div class="l">retrieval p95 · 10k engrams</div></div>
+      <div class="metric"><div class="n">~105</div><div class="l">memory-pack tokens</div></div>
+      <div class="metric"><div class="n">1 TiB</div><div class="l">virtual vRAM per box</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Run it locally first</h2>
+    <p class="sub">Same image, your laptop. Then point <code>deploy.sh</code> at ECS.</p>
+    <pre><span class="c"># from the repo root, with a real key in .env</span>
+<span class="o">./deploy/alibaba/deploy.sh</span> local
+<span class="c"># arena + API → http://localhost:8000</span></pre>
+  </section>
+
+  <footer>
+    <strong>Kioku v1</strong> — built on <span class="gold">Cadran virtual hardware</span> · Guardianity<br/>
+    Hosted on Alibaba Cloud ECS · powered by Qwen Cloud (Model Studio)
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# Kioku v1 — api (engine + web arena, same origin) + substrate volume.
+# Brain: Qwen Cloud, configured via .env (QWEN_API_KEY, QWEN_BASE_URL, ...).
+services:
+  api:
+    build:
+      context: .
+      dockerfile: deploy/alibaba/Dockerfile
+    image: kioku:v1
+    container_name: kioku-api
+    ports:
+      - "8000:8000"        # http://localhost:8000  → arena + /api
+    env_file:
+      - .env
+    environment:
+      KIOKU_DATA_DIR: /data
+      KIOKU_STORE: rust
+      KIOKU_WEB_ORIGIN: "*"
+    volumes:
+      - kioku_substrate:/data   # the 1 TiB vRAM box + 4 TiB virtual disk live here (sparse)
+    restart: unless-stopped
+
+volumes:
+  kioku_substrate:
