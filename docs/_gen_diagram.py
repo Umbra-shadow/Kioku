@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Guardianity — Kioku v1
 """Render docs/architecture.png with PIL — no mermaid toolchain needed.
 
 A hand-laid version of architecture.mmd in the Kioku hardware-dusk palette.

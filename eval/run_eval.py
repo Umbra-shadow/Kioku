@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Guardianity — Kioku v1
 """Kioku eval harness — measured numbers, no fabrication.
 
 Produces eval/METRICS.md from real runs against the Cadran substrate:

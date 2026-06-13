@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Guardianity — Kioku v1
 """Tenancy and the turn engine — the shared mind and the newborns (spec §6).
 
 Default: one **shared mind** (``tenant = "kioku"``, one Cadran space) — everyone

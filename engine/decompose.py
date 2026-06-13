@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Guardianity — Kioku v1
 """The understanding pipeline — Kioku's heart.
 
 capture → decompose (one structured Qwen call) → embed → [curiosity, async]

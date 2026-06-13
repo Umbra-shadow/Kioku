@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Guardianity — Kioku v1
 """Kioku v1 — FastAPI app: the arena's backend, the inspector's source.
 
 Routes (all JSON unless noted):

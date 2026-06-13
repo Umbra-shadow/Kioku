@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Guardianity — Kioku v1
 """Recall — fast, small, right (spec §4).
 
 `MemoryIndex` is both sides of the same structure: the commit path that

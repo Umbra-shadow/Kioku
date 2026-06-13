@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Guardianity — Kioku v1
 """Latency and recall instrumentation — measured, never fabricated.
 
 A tiny in-process recorder: timed spans feed per-name percentile summaries

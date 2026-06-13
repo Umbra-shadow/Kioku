@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Guardianity — Kioku v1
 // kiokud.rs — Kioku v1 daemon: a line-protocol server over the Cadran substrate.
 //
 // Owns one `TheBox` (1 TiB sparse vRAM universe + 4 TiB virtual disk) and

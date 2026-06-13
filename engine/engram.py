@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Guardianity — Kioku v1
 """The engram — Kioku's unit of memory.
 
 Every (user_message, assistant_reply) exchange is decomposed into one

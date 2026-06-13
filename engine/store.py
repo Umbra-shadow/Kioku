@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Guardianity — Kioku v1
 """Kioku store — the seam between the engine and the Cadran substrate.
 
 Two interchangeable backends behind one protocol:

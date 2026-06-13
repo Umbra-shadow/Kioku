@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Guardianity — Kioku v1
 """The curiosity loop (§3.4) — Kioku's differentiator.
 
 Like a human who hears a new word and quietly looks it up: for every term

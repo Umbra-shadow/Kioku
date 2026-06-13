@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Guardianity — Kioku v1
 """Forgetting — the part everyone else skips (spec §5).
 
 Three mechanisms, all observable in the inspector's Forgetting tab:

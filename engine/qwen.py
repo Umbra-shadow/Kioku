@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Guardianity — Kioku v1
 """Qwen Cloud client — chat + embeddings over the OpenAI-compatible endpoint.
 
 All LLM calls in Kioku go through this module. Async httpx with timeouts,

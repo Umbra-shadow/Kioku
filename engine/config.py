@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Guardianity — Kioku v1
 """Kioku configuration — every tunable constant lives here, documented.
 
 Secrets come from the environment (``.env`` is loaded once, never logged).
