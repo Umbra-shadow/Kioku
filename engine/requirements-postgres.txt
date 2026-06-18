@@ -1,0 +1,3 @@
+# Optional: install this file when DATABASE_URL points at a Postgres/Neon database.
+#   pip install -r engine/requirements-postgres.txt
+psycopg2-binary>=2.9

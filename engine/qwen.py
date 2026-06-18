@@ -81,7 +81,7 @@ class QwenClient:
         *,
         json_mode: bool = False,
         temperature: float = 0.3,
-        max_tokens: int = 1024,
+        max_tokens: int = 16384,
     ) -> str:
         payload: dict[str, Any] = {
             "model": self.config.model,
@@ -106,7 +106,7 @@ class QwenClient:
         messages: list[dict[str, str]],
         *,
         temperature: float = 0.2,
-        max_tokens: int = 1024,
+        max_tokens: int = 16384,
     ) -> dict[str, Any]:
         """Strict-JSON chat: one round trip, one repair attempt on bad JSON."""
         text = await self.chat(

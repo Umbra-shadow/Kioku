@@ -5,69 +5,216 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Host Kioku 記憶 on Alibaba Cloud</title>
 <meta name="description" content="Run Kioku — a living memory for any LLM — on Alibaba Cloud ECS, with Qwen Cloud (Model Studio) as the brain. One image, one command." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <style>
-  :root{
-    --bg:#0b0d10; --bg1:#11151a; --bg2:#161b22; --line:#232a33;
-    --ink:#e6edf3; --dim:#93a1b0; --faint:#5c6a78;
-    --amber:#f5b659; --amber2:#d98e2b; --teal:#4fd1c5; --violet:#b08cff; --green:#5fd38b;
-    --ali:#ff6a00; /* Alibaba Cloud orange */
-    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
-    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  :root {
+    --bg:      #faf8f5;
+    --bg1:     #ffffff;
+    --bg2:     #f4f1ec;
+    --line:    #e2dcd4;
+    --border:  #ddd8d0;
+    --ink:     #1a1410;
+    --dim:     #55504a;
+    --faint:   #888880;
+    --accent:  #6d3bbf;
+    --accent2: #572fa0;
+    --violet:  #8b5fe0;
+    --teal:    #1a8a7a;
+    --green:   #2e7d4f;
+    --ali:     #ff6a00;
+    --red:     #b83030;
+    --mono:    'JetBrains Mono', ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans:    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --serif:   'Fraunces', Georgia, serif;
+    --radius:  2px;
   }
-  *{box-sizing:border-box}
-  body{margin:0;background:
-      radial-gradient(1100px 540px at 85% -10%,#1b2330 0,transparent 60%),
-      radial-gradient(900px 480px at -10% 110%,#241a12 0,transparent 55%),
-      var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
-  a{color:var(--amber)}
-  .wrap{max-width:980px;margin:0 auto;padding:0 20px}
-  header{padding:54px 0 24px;border-bottom:1px solid var(--line)}
-  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--faint);
-    border:1px solid var(--line);border-radius:999px;padding:5px 12px;margin-bottom:18px}
-  .eyebrow .blip{width:8px;height:8px;border-radius:50%;background:var(--ali);box-shadow:0 0 12px var(--ali)}
-  h1{font-size:clamp(30px,5vw,48px);line-height:1.1;margin:.1em 0 .3em}
-  h1 .kanji{color:var(--amber)} h1 .ali{color:var(--ali)}
-  .lede{font-size:18px;color:var(--dim);max-width:680px}
-  .lede b{color:var(--ink)}
-  .cta{display:flex;gap:12px;flex-wrap:wrap;margin:26px 0 8px}
-  .btn{min-height:46px;padding:0 20px;border-radius:11px;border:1px solid var(--line);background:var(--bg2);
-    color:var(--ink);font-weight:650;font-size:14px;display:inline-flex;align-items:center;gap:9px;text-decoration:none}
-  .btn.primary{background:linear-gradient(180deg,var(--ali),#d85700);border:none;color:#1a0e04}
-  .btn:hover{border-color:var(--ali)}
-  section{padding:40px 0;border-bottom:1px solid var(--line)}
-  h2{font-size:24px;margin:0 0 6px} .sub{color:var(--faint);margin:0 0 22px;font-size:14px}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-  .card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px}
-  .card h3{margin:0 0 6px;font-size:16px}
-  .card.ali h3{color:var(--ali)} .card.amber h3{color:var(--amber)} .card.teal h3{color:var(--teal)}
-  .card p{margin:0;color:var(--dim);font-size:14px}
-  .flow{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap}
-  .node{flex:1;min-width:150px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px}
-  .node .k{font-family:var(--mono);font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em}
-  .node .v{font-weight:650;margin-top:4px}
-  .node .d{color:var(--dim);font-size:13px;margin-top:6px}
-  .node.brain{border-color:#2c3a23} .node.brain .v{color:var(--green)}
-  .node.host{border-color:#3a2a16} .node.host .v{color:var(--ali)}
-  .arrow{align-self:center;color:var(--faint);font-size:22px}
-  ol.steps{counter-reset:s;list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}
-  ol.steps li{counter-increment:s;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px 16px 14px 54px;position:relative}
-  ol.steps li::before{content:counter(s);position:absolute;left:14px;top:14px;width:26px;height:26px;border-radius:50%;
-    background:var(--ali);color:#1a0e04;font-weight:700;display:grid;place-items:center;font-size:13px}
-  ol.steps b{color:var(--ink)}
-  pre{background:#06080a;border:1px solid var(--line);border-radius:12px;padding:14px;overflow:auto;
-    font-family:var(--mono);font-size:13px;color:var(--ink);margin:10px 0 0}
-  pre .c{color:var(--faint)} pre .o{color:var(--ali)} pre .a{color:var(--amber)}
-  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-  .metric{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center}
-  .metric .n{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--amber)}
-  .metric .l{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
-  footer{padding:30px 0 50px;color:var(--faint);font-size:13px;text-align:center}
-  footer .gold{color:var(--amber2)}
-  @media(max-width:760px){.grid,.metrics{grid-template-columns:1fr 1fr}.arrow{transform:rotate(90deg)}}
-  @media(max-width:480px){.grid,.metrics{grid-template-columns:1fr}}
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); font-size: 16px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent2); text-decoration: underline; }
+  code {
+    font-family: var(--mono); font-size: 0.88em;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 2px; padding: 1px 5px;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- nav ---- */
+  nav {
+    border-bottom: 1px solid var(--border); background: var(--bg1);
+    position: sticky; top: 0; z-index: 20;
+  }
+  .nav-inner {
+    max-width: 1000px; margin: 0 auto; padding: 0 24px;
+    display: flex; align-items: center; gap: 16px; height: 54px;
+  }
+  .nav-brand {
+    font-family: var(--serif); font-size: 18px; font-weight: 600; color: var(--ink);
+    display: flex; align-items: center; gap: 8px; text-decoration: none;
+  }
+  .nav-brand .kanji { color: var(--accent); font-size: 22px; }
+  .nav-back {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: #fff; border: 1px solid var(--accent); border-radius: var(--radius);
+    padding: 8px 18px; background: var(--accent); text-decoration: none;
+    transition: background .15s, border-color .15s;
+    font-weight: 500;
+  }
+  .nav-back:hover { background: var(--accent2); border-color: var(--accent2); text-decoration: none; }
+
+  /* ---- header ---- */
+  header { padding: 56px 0 36px; border-bottom: 1px solid var(--border); }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--dim); background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 999px; padding: 5px 14px; margin-bottom: 20px;
+  }
+  .eyebrow .blip {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--ali);
+    box-shadow: 0 0 8px #ff6a0080;
+  }
+  h1 {
+    font-family: var(--serif); font-size: clamp(32px, 5vw, 52px);
+    line-height: 1.1; margin: 0 0 16px; font-weight: 600;
+  }
+  h1 .kanji { color: var(--accent); }
+  h1 .ali { color: var(--ali); }
+  .lede { font-size: 18px; color: var(--dim); max-width: 700px; margin: 0 0 28px; }
+  .lede b { color: var(--ink); }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .btn {
+    min-height: 46px; padding: 0 22px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--bg2);
+    color: var(--dim); font-family: var(--mono); font-size: 12px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+    transition: border-color .15s, color .15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+  .btn.primary {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+  }
+  .btn.primary:hover { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+
+  /* ---- sections ---- */
+  section { padding: 44px 0; border-bottom: 1px solid var(--border); }
+  h2 {
+    font-family: var(--serif); font-size: 26px; margin: 0 0 4px;
+    font-weight: 600; color: var(--ink);
+  }
+  .sub { color: var(--faint); margin: 0 0 24px; font-size: 15px; }
+
+  /* ---- feature grid ---- */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card {
+    background: var(--bg1); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+  }
+  .card h3 { margin: 0 0 8px; font-size: 16px; font-family: var(--serif); font-weight: 600; }
+  .card.ali h3 { color: var(--ali); }
+  .card.purple h3 { color: var(--accent); }
+  .card.teal h3 { color: var(--teal); }
+  .card p { margin: 0; color: var(--dim); font-size: 14.5px; line-height: 1.6; }
+
+  /* ---- architecture flow ---- */
+  .flow { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
+  .node {
+    flex: 1; min-width: 160px;
+    background: var(--bg1); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px;
+  }
+  .node .k {
+    font-family: var(--mono); font-size: 10px; color: var(--faint);
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;
+  }
+  .node .v { font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+  .node .d { color: var(--dim); font-size: 13.5px; line-height: 1.55; }
+  .node.brain { border-color: #b8e8d8; }
+  .node.brain .v { color: var(--teal); }
+  .node.host { border-color: #ffd8b8; }
+  .node.host .v { color: var(--ali); }
+  .node.browser { border-color: #ccc0e8; }
+  .node.browser .v { color: var(--accent); }
+  .arrow { align-self: center; color: var(--faint); font-size: 24px; }
+
+  /* ---- deploy steps ---- */
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+  ol.steps li {
+    counter-increment: s;
+    background: var(--bg1); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px 16px 58px; position: relative;
+  }
+  ol.steps li::before {
+    content: counter(s);
+    position: absolute; left: 16px; top: 16px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-family: var(--mono); font-weight: 700; font-size: 13px;
+    display: grid; place-items: center;
+  }
+  ol.steps li b { color: var(--ink); }
+  ol.steps li p { margin: 4px 0 0; color: var(--dim); font-size: 14.5px; }
+
+  /* ---- code blocks ---- */
+  pre {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; overflow: auto;
+    font-family: var(--mono); font-size: 13px; color: var(--ink);
+    margin: 12px 0 0; line-height: 1.6;
+  }
+  pre .c { color: var(--faint); }
+  pre .o { color: var(--accent); font-weight: 500; }
+  pre .a { color: var(--ali); }
+
+  /* ---- metrics ---- */
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .metric {
+    background: var(--bg1); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px; text-align: center;
+  }
+  .metric .n {
+    font-family: var(--mono); font-size: 26px; font-weight: 700; color: var(--accent);
+  }
+  .metric .l {
+    font-size: 11px; color: var(--faint); text-transform: uppercase;
+    letter-spacing: 0.06em; margin-top: 6px;
+  }
+
+  /* ---- footer ---- */
+  footer { padding: 36px 0 56px; color: var(--faint); font-size: 13px; text-align: center; }
+  footer .gold { color: var(--accent); }
+
+  @media(max-width: 760px) {
+    .grid, .metrics { grid-template-columns: 1fr 1fr; }
+    .arrow { transform: rotate(90deg); }
+  }
+  @media(max-width: 480px) {
+    .grid, .metrics { grid-template-columns: 1fr; }
+    h1 { font-size: 28px; }
+    .lede { font-size: 16px; }
+  }
 </style>
 </head>
 <body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="nav-brand" href="/">
+      <span class="kanji">記憶</span>
+      <span>Kioku</span>
+    </a>
+    <a class="nav-back" href="/">← Back to arena</a>
+  </div>
+</nav>
+
 <div class="wrap">
   <header>
     <span class="eyebrow"><span class="blip"></span> Alibaba Cloud · ECS + Qwen Cloud (Model Studio)</span>
@@ -86,9 +233,18 @@
     <h2>Why Alibaba Cloud</h2>
     <p class="sub">The model and the metal, from one provider, in one region — low latency, no egress surprises.</p>
     <div class="grid">
-      <div class="card ali"><h3>Qwen Cloud is the brain</h3><p>Every call — decomposition, curiosity, consolidation, embeddings, the answer — goes to Qwen models on the Model Studio OpenAI-compatible endpoint. <code>qwen-max</code> + <code>text-embedding-v3</code>.</p></div>
-      <div class="card amber"><h3>ECS runs the substrate</h3><p>The Rust <code>kiokud</code> daemon owns a 1&nbsp;TiB sparse vRAM universe and a 4&nbsp;TiB virtual disk — committed only on touch. Small outside, huge inside.</p></div>
-      <div class="card teal"><h3>One region, one hop</h3><p>Put the ECS instance in the same region as your Model Studio endpoint and the brain is a millisecond away. Substrate state lives on a persistent volume.</p></div>
+      <div class="card ali">
+        <h3>Qwen Cloud is the brain</h3>
+        <p>Every call — decomposition, curiosity, consolidation, embeddings, the answer — goes to Qwen models on the Model Studio OpenAI-compatible endpoint. <code>qwen-max</code> + <code>text-embedding-v3</code>.</p>
+      </div>
+      <div class="card purple">
+        <h3>ECS runs the substrate</h3>
+        <p>The Rust <code>kiokud</code> daemon owns a 1&nbsp;TiB sparse vRAM universe and a 4&nbsp;TiB virtual disk — committed only on touch. Small outside, huge inside.</p>
+      </div>
+      <div class="card teal">
+        <h3>One region, one hop</h3>
+        <p>Put the ECS instance in the same region as your Model Studio endpoint and the brain is a millisecond away. Substrate state lives on a persistent volume.</p>
+      </div>
     </div>
   </section>
 
@@ -96,11 +252,23 @@
     <h2>The shape of it</h2>
     <p class="sub">Browser → ECS (engine + arena + Cadran substrate) → Qwen Cloud.</p>
     <div class="flow">
-      <div class="node"><div class="k">Browser</div><div class="v">Web arena</div><div class="d">Dual panes: Qwen+Kioku vs Qwen raw. Same key — only memory differs.</div></div>
+      <div class="node browser">
+        <div class="k">Browser</div>
+        <div class="v">Web arena</div>
+        <div class="d">Dual panes: Qwen+Kioku vs Qwen raw. Same key — only memory differs.</div>
+      </div>
       <div class="arrow">→</div>
-      <div class="node host"><div class="k">Alibaba Cloud ECS</div><div class="v">kioku:v1 container</div><div class="d">FastAPI engine + web on :8000, Rust kiokud daemon, /data volume.</div></div>
+      <div class="node host">
+        <div class="k">Alibaba Cloud ECS</div>
+        <div class="v">kioku:v1 container</div>
+        <div class="d">FastAPI engine + web on :8000, Rust kiokud daemon, /data volume.</div>
+      </div>
       <div class="arrow">→</div>
-      <div class="node brain"><div class="k">Qwen Cloud</div><div class="v">Model Studio</div><div class="d">qwen-max · text-embedding-v3, OpenAI-compatible.</div></div>
+      <div class="node brain">
+        <div class="k">Qwen Cloud</div>
+        <div class="v">Model Studio</div>
+        <div class="d">qwen-max · text-embedding-v3, OpenAI-compatible.</div>
+      </div>
     </div>
   </section>
 
@@ -108,15 +276,29 @@
     <h2>Deploy in 6 steps</h2>
     <p class="sub">From zero to a public arena. Full detail in <a href="PROOF.md">PROOF.md</a>.</p>
     <ol class="steps">
-      <li><b>Create an ECS instance</b> — Ubuntu 22.04, ≥ 2&nbsp;GiB RAM (e.g. <code>ecs.t6-c1m2.large</code>), with a public IP.</li>
-      <li><b>Open the security group</b> — allow inbound TCP <b>8000</b> (app) and <b>22</b> (SSH).</li>
-      <li><b>Install Docker</b> on the instance: <code>curl -fsSL https://get.docker.com | sh</code></li>
-      <li><b>Get a Qwen key</b> from Model Studio and put it in <code>.env</code> as <code>QWEN_API_KEY</code>.</li>
-      <li><b>Ship it</b> from your machine:
+      <li>
+        <b>Create an ECS instance</b>
+        <p>Ubuntu 22.04, ≥ 2&nbsp;GiB RAM (e.g. <code>ecs.t6-c1m2.large</code>), with a public IP.</p>
+      </li>
+      <li>
+        <b>Open the security group</b>
+        <p>Allow inbound TCP <b>8000</b> (app) and <b>22</b> (SSH).</p>
+      </li>
+      <li>
+        <b>Install Docker</b>
+        <p>On the instance: <code>curl -fsSL https://get.docker.com | sh</code></p>
+      </li>
+      <li>
+        <b>Get a Qwen key</b>
+        <p>From Model Studio, then add it to <code>.env</code> as <code>QWEN_API_KEY</code>.</p>
+      </li>
+      <li>
+        <b>Ship it</b>
         <pre><span class="c"># builds the image (Rust kiokud + engine + arena) and runs it on the instance</span>
 <span class="o">./deploy/alibaba/deploy.sh</span> ecs ubuntu@<span class="a">&lt;public-ip&gt;</span></pre>
       </li>
-      <li><b>Verify</b> the substrate is live on Alibaba Cloud:
+      <li>
+        <b>Verify</b>
         <pre><span class="o">curl</span> http://<span class="a">&lt;public-ip&gt;</span>:8000/api/health
 <span class="c">→ {"ok":true,"backend":"kiokud","version":"0.1.0"}</span></pre>
       </li>
@@ -143,7 +325,7 @@
   </section>
 
   <footer>
-    <strong>Kioku v1</strong> — built on <span class="gold">Cadran virtual hardware</span> · Guardianity<br/>
+    <strong>Kioku v1</strong> — built on <span class="gold">Cadran virtual hardware</span> · Guardianity<br />
     Hosted on Alibaba Cloud ECS · powered by Qwen Cloud (Model Studio)
   </footer>
 </div>

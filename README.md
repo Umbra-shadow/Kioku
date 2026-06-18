@@ -45,6 +45,23 @@ make eval    # fixtures → eval/METRICS.md (10k-engram latency, recall accuracy
 | Recall within a **limited context window** | token-budgeted memory pack (~105 tok median) — `MemoryIndex.build_pack` |
 | Sophisticated Qwen use | decompose · curiosity · consolidate · embeddings · answer — [`engine/qwen.py`](engine/qwen.py), [`deploy/alibaba/PROOF.md`](deploy/alibaba/PROOF.md) |
 
+## Kioku Researcher 🔬
+
+The memory, turned into a researcher. Ask **one** question — it breaks it into
+**~20 deep questions**, researches each **live from the web**, and writes **one
+complete, sourced report** you can download as a **PDF**. Every step is remembered,
+so you can **talk to it while it works** and keep asking afterwards — memory is
+**per user, not per session**, and **durable** (Neon Postgres via `DATABASE_URL`,
+else local SQLite), so a new session even years later still recalls it. Bring your
+**own Qwen key in the browser** — it stays in that window only and is forgotten
+when you close it.
+
+```bash
+make demo   # then open http://localhost:8000/research.html
+```
+
+Full write-up: [docs/RESEARCHER.md](docs/RESEARCHER.md).
+
 ## What's inside
 
 - **`substrate/`** — Cadran virtual hardware (provided), plus `kiokud.rs`: a daemon

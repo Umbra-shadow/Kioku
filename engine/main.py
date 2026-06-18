@@ -123,7 +123,10 @@ def build_engine() -> KiokuEngine:
     cfg = settings()
     store = open_store(cfg.data_dir)
     qwen = QwenClient(cfg.llm)
-    registry = TenantRegistry(store, qwen, cfg)
+    # This is a single-user research tool, not a public arena — the per-message
+    # cap is high so a long research life (many runs × ~20 findings) never trips it.
+    message_cap = int(os.environ.get("KIOKU_MESSAGE_CAP", "1000000"))
+    registry = TenantRegistry(store, qwen, cfg, message_cap=message_cap)
     engine = KiokuEngine(registry)
     engine._store = store  # type: ignore[attr-defined]  # held for shutdown
     return engine
@@ -133,6 +136,21 @@ def create_app(engine: KiokuEngine | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.engine = engine or build_engine()
+        # The Researcher's durable history + per-user memory. The DB path is
+        # configurable; ":memory:" gives an ephemeral store (tests).
+        from engine.research.persistence import ResearchDB
+        from engine.research.runs import RunManager
+
+        # Prefer a real cloud database (DATABASE_URL, e.g. Neon Postgres) so the
+        # history + per-user memory survive redeploys; fall back to a local file.
+        db_dsn = (
+            os.environ.get("DATABASE_URL")
+            or os.environ.get("KIOKU_RESEARCH_DB")
+            or str(REPO_ROOT / "kioku_data" / "research.db")
+        )
+        app.state.db = ResearchDB(db_dsn)
+        app.state.runs = RunManager(app.state.engine, app.state.db)
+        app.state.runs.bootstrap()  # rehydrate memory + wire durability
         yield
         eng = app.state.engine
         await eng.drain_background()
@@ -140,6 +158,10 @@ def create_app(engine: KiokuEngine | None = None) -> FastAPI:
         if store is not None:
             store.close()
         await eng.qwen.aclose()
+        await eng.aclose_brains()
+        db = getattr(app.state, "db", None)
+        if db is not None:
+            db.close()
 
     app = FastAPI(title="Kioku v1", version="0.1.0", lifespan=lifespan)
     # Rate limiting is on by default; tests and load benchmarks turn it off.
@@ -345,6 +367,54 @@ def create_app(engine: KiokuEngine | None = None) -> FastAPI:
             "counters": METRICS.snapshot()["counters"],
             "tenant": mind.tenant_id,
         }
+
+    _AUTOCONV_SYSTEM = (
+        "You are scripting a realistic multi-turn demo for a memory AI. "
+        "Generate a sequence of short user messages (1–3 sentences each) for the given domain. "
+        "The sequence must:\n"
+        "1. First message: introduce yourself with a specific name and role in that domain.\n"
+        "2. Middle messages: ask real, interesting questions about the domain; occasionally "
+        "   reference who you are or what you said earlier.\n"
+        "3. One late message: explicitly test memory (e.g. 'do you remember what I told you about myself?').\n"
+        "4. Last message: a recall probe — 'what do you know about me and my work in this field?'\n"
+        "Messages must feel natural. Make personal details specific and memorable.\n"
+        "Respond ONLY with a JSON object: {\"messages\": [\"...\", \"...\"]}"
+    )
+
+    @app.post("/api/autoconv/plan")
+    async def autoconv_plan(request: Request) -> dict:
+        data = await request.json()
+        domain = str(data.get("domain", "")).strip()
+        turns = int(data.get("turns", 7))
+        if len(domain) < 2:
+            raise HTTPException(status_code=422, detail="domain must be at least 2 characters")
+        turns = max(4, min(12, turns))
+        engine: KiokuEngine = get_engine(request)
+        qwen = engine.qwen_for(request.headers.get("X-Qwen-Key"))
+        try:
+            result = await qwen.chat_json(
+                [
+                    {"role": "system", "content": _AUTOCONV_SYSTEM},
+                    {"role": "user", "content": f"Domain: {domain}\nTurns: {turns}"},
+                ],
+                temperature=0.75,
+                max_tokens=8192,
+            )
+            messages = result.get("messages") if isinstance(result, dict) else None
+            if not isinstance(messages, list) or len(messages) < 2:
+                raise ValueError("bad response shape")
+            return {"messages": [str(m).strip() for m in messages[:turns] if str(m).strip()]}
+        except LLMError as e:
+            raise HTTPException(status_code=502, detail=f"LLM unavailable: {e}") from e
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Could not plan conversation: {e}") from e
+
+    # The Researcher: one question → ~20 deep questions → live web research →
+    # one complete report, all remembered in a Kioku mind. Registered before the
+    # static mount so its /api routes win.
+    from engine.research_api import add_research_routes
+
+    add_research_routes(app)
 
     # Serve the web arena at the root, same-origin with the API, so the browser
     # never needs a separate host/port. Mounted last: API routes take priority.

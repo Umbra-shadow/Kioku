@@ -11,7 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY engine/requirements.txt engine/requirements.txt
-RUN pip install --no-cache-dir -r engine/requirements.txt
+COPY engine/requirements-postgres.txt engine/requirements-postgres.txt
+RUN pip install --no-cache-dir -r engine/requirements.txt \
+                               -r engine/requirements-postgres.txt
 
 # Source
 COPY substrate/ substrate/

@@ -19,9 +19,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections import OrderedDict
 from dataclasses import dataclass, field
+from typing import Callable
 
-from engine.config import Settings, settings
+from engine.config import LLMConfig, Settings, settings
 from engine.curiosity import curiosity_pass
 from engine.decompose import Capture, PipelineEvent, decompose_exchange, lite_keywords
 from engine.engram import Engram, new_ulid
@@ -144,8 +146,24 @@ class TenantRegistry:
             log.info("newborn mind %s on space %d", tenant_id, mind.space)
             return mind
 
+    def named_mind(self, tenant_id: str) -> Mind:
+        """Get — or create — a mind under a STABLE id. Unlike ``new_mind`` (a
+        random newborn), this is how a persistent per-user memory is pinned: the
+        Researcher's whole history lives under one named tenant, rehydrated from
+        the database on startup, so memory is per-user and survives restarts."""
+        mind = self._minds.get(tenant_id)
+        if mind is None:
+            mind = Mind(tenant_id, self.store, self.qwen, self.config)
+            self._minds[tenant_id] = mind
+            log.info("named mind %s on space %d", tenant_id, mind.space)
+        return mind
+
     def all_minds(self) -> list[Mind]:
         return list(self._minds.values())
+
+
+_BRAIN_CACHE_SIZE = 32   # max per-key QwenClient instances held in RAM
+_KEY_MAX = 128           # trim oversized X-Qwen-Key headers before using as dict keys
 
 
 class KiokuEngine:
@@ -156,6 +174,50 @@ class KiokuEngine:
         self.qwen = registry.qwen
         self.config = registry.config
         self._tasks: set[asyncio.Task] = set()
+        # Durability hooks: list of fn(tenant_id, engram) -> None. Append-only so
+        # multiple managers (e.g. in tests) can each register without overwriting.
+        self.persistor: list[Callable[[str, Engram], None]] = []
+        # Per-window brains keyed by raw API key, bounded LRU (never persisted).
+        # The key is trimmed to _KEY_MAX bytes here so an oversized header can't
+        # grow the cache unboundedly or land in logs.
+        self._brains: OrderedDict[str, QwenClient] = OrderedDict()
+
+    def qwen_for(self, api_key: str | None) -> QwenClient:
+        """The brain to use for this request: the caller's keyed client if they
+        brought a key, else the server's default brain."""
+        if not api_key:
+            return self.qwen
+        api_key = api_key[:_KEY_MAX]
+        client = self._brains.get(api_key)
+        if client is None:
+            base = self.config.llm
+            keyed = LLMConfig(
+                base_url=base.base_url, api_key=api_key, model=base.model,
+                embed_model=base.embed_model, provider=base.provider,
+                timeout_s=base.timeout_s, max_retries=base.max_retries,
+            )
+            client = QwenClient(keyed)
+            if len(self._brains) >= _BRAIN_CACHE_SIZE:
+                self._brains.popitem(last=False)  # evict the least-recently used
+            self._brains[api_key] = client
+        else:
+            self._brains.move_to_end(api_key)
+        return client
+
+    async def aclose_brains(self) -> None:
+        for client in list(self._brains.values()):
+            try:
+                await client.aclose()
+            except Exception:  # noqa: BLE001
+                pass
+        self._brains.clear()
+
+    def _persist(self, mind: Mind, engram: Engram) -> None:
+        for fn in self.persistor:
+            try:
+                fn(mind.tenant_id, engram)
+            except Exception:  # noqa: BLE001 — durability must never break a reply
+                log.exception("persistor failed for %s", engram.engram_id)
 
     # -- background work that must never block the reply ------------------
 
@@ -165,9 +227,19 @@ class KiokuEngine:
         task.add_done_callback(self._tasks.discard)
 
     async def drain_background(self) -> None:
-        """Await all in-flight curiosity/consolidation tasks (tests, shutdown)."""
-        while self._tasks:
-            await asyncio.gather(*list(self._tasks), return_exceptions=True)
+        """Await all in-flight curiosity/consolidation tasks (tests, shutdown).
+
+        Only awaits tasks that are not yet done, then yields so their
+        ``discard`` done-callbacks can run. Awaiting an already-finished task
+        does not suspend, so gathering only done tasks would busy-spin forever
+        (the set never drains because the callbacks never get a turn)."""
+        while True:
+            pending = [t for t in self._tasks if not t.done()]
+            if not pending:
+                self._tasks.clear()
+                return
+            await asyncio.gather(*pending, return_exceptions=True)
+            await asyncio.sleep(0)  # let the done-callbacks discard finished tasks
 
     # -- the turn ---------------------------------------------------------
 
@@ -177,9 +249,12 @@ class KiokuEngine:
         message: str,
         session_id: str | None = None,
         send_to_both: bool = True,
+        qwen: QwenClient | None = None,
+        extra_context: str = "",
     ) -> TurnResult:
         if mind.message_count >= self.registry.message_cap:
             raise MindFull(f"mind {mind.tenant_id} reached its {self.registry.message_cap}-message cap")
+        qwen = qwen or self.qwen  # the caller's per-window brain, or the server default
         session_id = session_id or new_ulid()
         mind.message_count += 1
         mind.turn_count += 1
@@ -187,7 +262,7 @@ class KiokuEngine:
         # 1. Recall: decompose-lite (local keywords + one cheap embedding).
         terms = lite_keywords(message)
         try:
-            vectors = await self.qwen.embed([message])
+            vectors = await qwen.embed([message])
             query_embedding = vectors[0] if vectors else []
         except LLMError as e:
             log.warning("query embed failed, keyword-only recall: %s", e)
@@ -197,15 +272,18 @@ class KiokuEngine:
         mind.index.reinforce([s.engram for s in scored])
 
         # 2. Answer — with memory, and (for the comparison) without.
-        kioku_reply = await self.qwen.chat(
+        system = KIOKU_SYSTEM.format(pack=pack.text or "(no memories yet)")
+        if extra_context:
+            system += "\n\n" + extra_context
+        kioku_reply = await qwen.chat(
             [
-                {"role": "system", "content": KIOKU_SYSTEM.format(pack=pack.text or "(no memories yet)")},
+                {"role": "system", "content": system},
                 {"role": "user", "content": message},
             ]
         )
         raw_reply = None
         if send_to_both:
-            raw_reply = await self.qwen.chat(
+            raw_reply = await qwen.chat(
                 [{"role": "system", "content": RAW_SYSTEM}, {"role": "user", "content": message}]
             )
 
@@ -219,18 +297,19 @@ class KiokuEngine:
             reply=kioku_reply,
             session_prev=prev,
         )
-        engram = await decompose_exchange(self.qwen, capture, emit=mind.emit)
+        engram = await decompose_exchange(qwen, capture, emit=mind.emit)
         supersede = mind.forget.supersede_contradictions(engram)
         # Snapshot which terms are novel BEFORE commit writes this engram's own
         # cells — otherwise curiosity would see every term as already "known".
         novel_terms = [t for t in engram.index_terms() if not mind.index.is_known(t)]
         receipt = mind.index.commit(engram)
+        self._persist(mind, engram)
         await mind.emit(
             PipelineEvent("committed", engram.engram_id, {"address": receipt.address, "block": receipt.block})
         )
 
         # 4. Curiosity and consolidation run in the background (never block).
-        self._spawn(self._curiosity(mind, engram, novel_terms))
+        self._spawn(self._curiosity(mind, engram, novel_terms, qwen))
         if mind.turn_count % CONSOLIDATE_EVERY == 0:
             self._spawn(self._consolidate(mind))
 
@@ -244,11 +323,56 @@ class KiokuEngine:
             session_id=session_id,
         )
 
-    async def _curiosity(self, mind: Mind, engram: Engram, novel_terms: list[str]) -> None:
+    async def remember(
+        self,
+        mind: Mind,
+        message: str,
+        reply: str,
+        session_id: str | None = None,
+        *,
+        importance_floor: float = 0.0,
+        qwen: QwenClient | None = None,
+    ) -> Engram:
+        """Commit an exchange into memory WITHOUT generating an answer.
+
+        ``turn`` is the chat loop (it asks the brain twice for the dual-pane
+        comparison). The researcher already *has* the content — a sub-question
+        and the finding it researched — and only needs Kioku to *understand and
+        remember* it. This is that write half of the turn: decompose → embed →
+        supersede contradictions → commit, plus background curiosity. So a whole
+        research run (every question, every finding, the final report) becomes
+        recallable memory the model can be asked about afterwards.
+        """
+        qwen = qwen or self.qwen
+        session_id = session_id or new_ulid()
+        mind.message_count += 1
+        prev = mind.index.session_last(session_id)
+        capture = Capture(
+            tenant=mind.tenant_id,
+            user_id=mind.tenant_id,
+            session_id=session_id,
+            message=message,
+            reply=reply,
+            session_prev=prev,
+        )
+        engram = await decompose_exchange(qwen, capture, emit=mind.emit)
+        if engram.importance < importance_floor:
+            engram.importance = importance_floor
+            engram.memory_class = "semantic"
+        mind.forget.supersede_contradictions(engram)
+        novel_terms = [t for t in engram.index_terms() if not mind.index.is_known(t)]
+        mind.index.commit(engram)
+        self._persist(mind, engram)
+        self._spawn(self._curiosity(mind, engram, novel_terms, qwen))
+        return engram
+
+    async def _curiosity(
+        self, mind: Mind, engram: Engram, novel_terms: list[str], qwen: QwenClient | None = None
+    ) -> None:
         try:
             novel = set(novel_terms)
             learned = await curiosity_pass(
-                self.qwen,
+                qwen or self.qwen,
                 engram,
                 is_known=lambda t: t not in novel,
                 max_lookups=self.config.curiosity_max_lookups,

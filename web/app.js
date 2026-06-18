@@ -2,9 +2,6 @@
    API base: ?api=… query param, else window.KIOKU_API, else same origin :8000. */
 "use strict";
 
-// API base: ?api=… wins; then window.KIOKU_API; else same origin (the engine
-// serves this page and /api together). For a separately-hosted page, set
-// window.KIOKU_API before this script loads.
 const API = (new URLSearchParams(location.search).get("api")
   || window.KIOKU_API
   || (location.protocol === "file:" ? "http://localhost:8000" : location.origin)
@@ -15,6 +12,7 @@ const state = {
   token: localStorage.getItem("kioku_token") || "kioku",
   session: localStorage.getItem("kioku_session") || null,
   stream: null,
+  autoconv: null, // { timer, messages, index }
 };
 
 // ---- helpers ----------------------------------------------------------------
@@ -29,8 +27,19 @@ function humanBytes(n) {
   while (Math.abs(n) >= 1024 && i < u.length - 1) { n /= 1024; i++; }
   return (i === 0 ? n : n.toFixed(1)) + " " + u[i];
 }
+
+// ---- API key ----------------------------------------------------------------
+function getApiKey() { return sessionStorage.getItem("kioku_api_key") || ""; }
+function apiHeaders(extra) {
+  const h = { "Content-Type": "application/json", ...extra };
+  const k = getApiKey();
+  if (k) h["X-Qwen-Key"] = k;
+  return h;
+}
+
 async function api(path, opts) {
-  const r = await fetch(API + path, opts);
+  const headers = apiHeaders((opts && opts.headers) || {});
+  const r = await fetch(API + path, { ...opts, headers });
   if (!r.ok) {
     let detail = r.statusText;
     try { detail = (await r.json()).detail || detail; } catch (_) {}
@@ -38,6 +47,7 @@ async function api(path, opts) {
   }
   return r.json();
 }
+
 function setMindChip() {
   $("mindChip").textContent = "mind: " + (state.token === "kioku" ? "shared" : state.token.slice(0, 10) + "…");
 }
@@ -68,7 +78,7 @@ async function send(message, sendToBoth) {
   resetChips();
   try {
     const res = await api("/api/chat", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
       body: JSON.stringify({ message, token: state.token, session_id: state.session, send_to_both: sendToBoth }),
     });
     state.token = res.token; state.session = res.session_id;
@@ -123,6 +133,76 @@ function connectStream() {
   };
   es.onerror = () => {};
   state.stream = es;
+}
+
+// ---- auto-conversation ------------------------------------------------------
+function autoconvSetStatus(msg, cls) {
+  const el = $("autoconvStatus");
+  el.textContent = msg;
+  el.className = "autoconv-status" + (cls ? " " + cls : "");
+}
+
+function stopAutoConv() {
+  if (state.autoconv) {
+    clearTimeout(state.autoconv.timer);
+    state.autoconv = null;
+  }
+  $("autoconvStart").style.display = "";
+  $("autoconvStop").style.display = "none";
+  $("autoconvDomain").disabled = false;
+}
+
+async function startAutoConv() {
+  const domain = $("autoconvDomain").value.trim();
+  if (!domain) {
+    autoconvSetStatus("Enter a domain to begin.", "error");
+    $("autoconvDomain").focus();
+    return;
+  }
+  if (state.autoconv) stopAutoConv();
+
+  $("autoconvStart").style.display = "none";
+  $("autoconvStop").style.display = "";
+  $("autoconvDomain").disabled = true;
+  autoconvSetStatus("Generating conversation plan…", "running");
+
+  let messages;
+  try {
+    const res = await api("/api/autoconv/plan", {
+      method: "POST",
+      body: JSON.stringify({ domain, turns: 7 }),
+    });
+    messages = res.messages;
+    if (!messages || !messages.length) throw new Error("Empty plan returned");
+  } catch (e) {
+    autoconvSetStatus("⚠ " + e.message, "error");
+    stopAutoConv();
+    return;
+  }
+
+  autoconvSetStatus(`Playing ${messages.length} messages…`, "running");
+
+  let index = 0;
+  const DELAY_MS = 4500;
+
+  function scheduleNext() {
+    if (!state.autoconv) return;
+    if (index >= messages.length) {
+      autoconvSetStatus(`Done — ${messages.length} messages sent. Watch what Kioku remembers.`, "done");
+      stopAutoConv();
+      return;
+    }
+    const msg = messages[index];
+    index++;
+    autoconvSetStatus(`Sending message ${index} of ${messages.length}…`, "running");
+    send(msg, true).finally(() => {
+      if (!state.autoconv) return;
+      state.autoconv.timer = setTimeout(scheduleNext, DELAY_MS);
+    });
+  }
+
+  state.autoconv = { timer: null, messages, index: 0 };
+  scheduleNext();
 }
 
 // ---- inspector tabs ---------------------------------------------------------
@@ -263,8 +343,37 @@ $("consolidateBtn").addEventListener("click", async () => {
 $("modalClose").addEventListener("click", () => $("modalBack").classList.remove("open"));
 $("modalBack").addEventListener("click", (e) => { if (e.target === $("modalBack")) $("modalBack").classList.remove("open"); });
 
+// API key save
+$("apiKeySave").addEventListener("click", () => {
+  const val = $("apiKeyInput").value.trim();
+  if (val) {
+    sessionStorage.setItem("kioku_api_key", val);
+    $("apiKeyInput").value = "";
+    $("apiKeyInput").placeholder = "Key saved ✓";
+    toast("API key saved for this session");
+    setTimeout(() => { $("apiKeyInput").placeholder = "API key"; }, 3000);
+  } else {
+    sessionStorage.removeItem("kioku_api_key");
+    toast("API key cleared");
+  }
+});
+$("apiKeyInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); $("apiKeySave").click(); }
+});
+
+// Auto-conversation
+$("autoconvStart").addEventListener("click", startAutoConv);
+$("autoconvStop").addEventListener("click", () => {
+  stopAutoConv();
+  autoconvSetStatus("Stopped.", "");
+});
+
 // ---- boot -------------------------------------------------------------------
 setMindChip();
 connectStream();
+if (getApiKey()) {
+  $("apiKeyInput").placeholder = "Key loaded ✓";
+  setTimeout(() => { $("apiKeyInput").placeholder = "API key"; }, 2000);
+}
 api("/api/health").then((h) => { if (!h.backend) return; $("status").textContent = `substrate: ${h.backend}`; })
   .catch(() => { $("status").textContent = "⚠ engine offline — run make dev"; });
