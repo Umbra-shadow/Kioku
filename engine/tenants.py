@@ -251,6 +251,8 @@ class KiokuEngine:
         send_to_both: bool = True,
         qwen: QwenClient | None = None,
         extra_context: str = "",
+        history: list[dict] | None = None,
+        system_override: str | None = None,
     ) -> TurnResult:
         if mind.message_count >= self.registry.message_cap:
             raise MindFull(f"mind {mind.tenant_id} reached its {self.registry.message_cap}-message cap")
@@ -272,15 +274,18 @@ class KiokuEngine:
         mind.index.reinforce([s.engram for s in scored])
 
         # 2. Answer — with memory, and (for the comparison) without.
-        system = KIOKU_SYSTEM.format(pack=pack.text or "(no memories yet)")
+        pack_text = pack.text or "(no prior conversations yet)"
+        if system_override is not None:
+            system = system_override.format(pack=pack_text) if "{pack}" in system_override else system_override
+        else:
+            system = KIOKU_SYSTEM.format(pack=pack_text)
         if extra_context:
             system += "\n\n" + extra_context
-        kioku_reply = await qwen.chat(
-            [
-                {"role": "system", "content": system},
-                {"role": "user", "content": message},
-            ]
-        )
+        messages: list[dict] = [{"role": "system", "content": system}]
+        if history:
+            messages.extend(history)
+        messages.append({"role": "user", "content": message})
+        kioku_reply = await qwen.chat(messages)
         raw_reply = None
         if send_to_both:
             raw_reply = await qwen.chat(

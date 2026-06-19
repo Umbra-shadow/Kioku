@@ -50,7 +50,6 @@ header.top {
   z-index: 20;
 }
 .brand { display: flex; align-items: center; gap: 10px; }
-.brand .kanji { font-size: 24px; color: var(--accent); font-weight: 700; letter-spacing: 1px; }
 .brand .name { font-family: var(--serif); font-size: 18px; font-weight: 600; color: var(--ink); }
 .brand .ver {
   font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;

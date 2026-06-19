@@ -1,5 +1,9 @@
-# secrets — never committed
+# secrets — never committed. .env is Qwen-only; .env.local holds personal
+# overrides (e.g. a Gemini test key) and must never be committed. Only the
+# Qwen-only .env.example is tracked.
 .env
+.env.*
+!.env.example
 
 # python
 __pycache__/

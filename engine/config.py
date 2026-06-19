@@ -17,16 +17,22 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 def load_dotenv(path: Path | None = None) -> None:
     """Tiny .env loader: KEY=VALUE lines, '#' comments, no expansion.
-    Existing environment variables always win."""
-    path = path or REPO_ROOT / ".env"
-    if not path.exists():
-        return
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
+
+    Precedence (highest first): real environment variables, then a gitignored
+    ``.env.local`` (your personal overrides — e.g. a Gemini test key, never
+    committed), then ``.env`` (Qwen-only by convention). Each KEY uses
+    ``setdefault``, so the first source to set it wins: real env > .env.local > .env.
+    """
+    paths = [path] if path is not None else [REPO_ROOT / ".env.local", REPO_ROOT / ".env"]
+    for p in paths:
+        if p is None or not p.exists():
             continue
-        key, _, value = line.partition("=")
-        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+        for line in p.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
 @dataclass(frozen=True, slots=True)

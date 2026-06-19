@@ -30,6 +30,15 @@ from engine.research.researcher import DEFAULT_NUM_QUESTIONS
 from engine.research.runs import RunManager
 from engine.tenants import KiokuEngine, MindFull
 
+_RESEARCH_SYSTEM = """\
+You are a research expert with deep, committed knowledge about the topic you investigated.
+Everything below is YOUR knowledge — you studied it, you understand it, you remember it.
+Answer as someone who truly knows this subject, drawing naturally from what you learned.
+When asked what you remember or know, speak from your understanding — do not say you lack memory.
+Recalled memory from prior conversations (may be empty for new sessions):
+{pack}\
+"""
+
 
 class StartRequest(BaseModel):
     topic: str = Field(min_length=4, max_length=2000)
@@ -66,21 +75,20 @@ def _build_run_context(run) -> str:
 
     lines = [
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-        f"RESEARCH SESSION — topic: {topic}",
-        "You have direct access to all findings from this research run.",
-        "Use them to answer the user's questions precisely.",
+        f"WHAT YOU KNOW — you deeply researched: \"{topic}\"",
+        "This is your own knowledge, committed to your memory. Speak from it naturally.",
+        "When the user asks what you remember or know, draw from this — do not say you lack memory.",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     ]
 
     if report:
-        lines.append("\nSYNTHESIZED REPORT (complete):")
+        lines.append("\nYOUR SYNTHESIZED UNDERSTANDING (complete):")
         lines.append(report)
     else:
-        # Run still in progress — give what we have so far
-        lines.append("\nFINDINGS SO FAR:")
+        lines.append("\nWHAT YOU'VE LEARNED SO FAR:")
 
     if findings:
-        lines.append("\nINDIVIDUAL FINDINGS (numbered):")
+        lines.append("\nDETAILED KNOWLEDGE (by question you investigated):")
         for f in findings:
             answer = (f.get("answer") or "").strip()
             if not answer:
@@ -192,11 +200,23 @@ def add_research_routes(app: FastAPI) -> None:
         run = _require(request, run_id)
         engine: KiokuEngine = request.app.state.engine
         extra_context = _build_run_context(run)
+
+        # Load prior turns so the model has full conversation continuity.
+        # Without this, each message starts fresh — the model can't reference
+        # what was just said (e.g. "explain it" breaks without the prior exchange).
+        db = getattr(request.app.state, "db", None)
+        history: list[dict] = []
+        if db is not None and body.session_id:
+            prior = db.load_chats(session_id=body.session_id, limit=20)
+            history = [{"role": m["role"], "content": m["content"]} for m in prior[-16:]]
+
         try:
             result = await engine.turn(
                 run.mind, body.question, session_id=body.session_id,
                 send_to_both=False, qwen=_brain(request),
                 extra_context=extra_context,
+                history=history,
+                system_override=_RESEARCH_SYSTEM,
             )
         except MindFull as e:
             raise HTTPException(status_code=429, detail=str(e)) from e
@@ -213,6 +233,8 @@ def add_research_routes(app: FastAPI) -> None:
             "recalled": result.pack.hit_list(),
             "pack_tokens": result.pack.tokens,
             "run_status": run.status,
+            "has_context": bool(extra_context),
+            "history_turns": len(history) // 2,
         }
 
     @app.get("/api/research/{run_id}/chat")

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Kioku Researcher</title>
   <meta name="description" content="One question → ~20 deep questions → live web research → one complete report. It remembers every step, across sessions." />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>記</text></svg>" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -242,6 +242,65 @@
     .col-research::-webkit-scrollbar { width: 4px; }
     .col-research::-webkit-scrollbar-thumb { background: var(--strong); }
 
+    /* ── memory panel ─────────────────────────────────────────────── */
+    .mem-panel {
+      border: 1px solid var(--border);
+      background: var(--raised);
+      margin-bottom: 18px;
+    }
+    .mem-head {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .mem-label {
+      font-family: var(--mono); font-size: 9px; letter-spacing: 0.22em;
+      text-transform: uppercase; color: var(--accent); flex: 1;
+    }
+    .mem-count {
+      font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em;
+      padding: 2px 8px; border: 1px solid var(--accent); color: var(--accent);
+      transition: background 0.3s, color 0.3s;
+    }
+    .mem-count.writing {
+      background: var(--accent); color: #fff;
+    }
+    .mem-note {
+      padding: 7px 14px 8px;
+      font-size: 10.5px; color: var(--subtle); line-height: 1.5;
+      border-bottom: 1px solid var(--border);
+    }
+    .mem-note strong { color: var(--muted); font-weight: 500; }
+    .mem-feed {
+      padding: 8px 14px 10px;
+      max-height: 138px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 5px;
+      scrollbar-width: thin; scrollbar-color: var(--strong) transparent;
+    }
+    .mem-feed::-webkit-scrollbar { width: 3px; }
+    .mem-feed::-webkit-scrollbar-thumb { background: var(--strong); }
+    .mem-row {
+      display: flex; align-items: flex-start; gap: 7px;
+    }
+    .mem-dot {
+      width: 5px; height: 5px; flex-shrink: 0;
+      background: var(--accent); margin-top: 5px;
+    }
+    .mem-dot.new { animation: memwrite 0.9s ease-out forwards; }
+    .mem-text {
+      font-size: 11px; color: var(--muted); line-height: 1.45;
+      flex: 1; overflow: hidden;
+      white-space: nowrap; text-overflow: ellipsis;
+    }
+    .mem-empty {
+      font-size: 11px; color: var(--subtle); font-style: italic; padding: 3px 0;
+    }
+    @keyframes memwrite {
+      0%   { transform: scale(3); background: #fff; }
+      40%  { background: var(--accent); }
+      100% { transform: scale(1); background: var(--accent); }
+    }
+
     /* topic input box */
     .ask-box {
       border: 1px solid var(--border);
@@ -418,7 +477,7 @@
       <div class="logo-mark">
         <span></span><span></span><span></span><span></span>
       </div>
-      <span class="logo-text">記憶 <em>Researcher</em></span>
+      <span class="logo-text">Kioku <em>Researcher</em></span>
       <span class="logo-ver">v1</span>
     </div>
 
@@ -471,6 +530,22 @@
 
     <!-- RIGHT: the research -->
     <div class="col-research">
+
+      <!-- memory panel -->
+      <div class="mem-panel">
+        <div class="mem-head">
+          <span class="mem-label">Research memory</span>
+          <span class="mem-count" id="memCount">0 engrams</span>
+        </div>
+        <div class="mem-note">
+          <strong>Isolated from the Arena.</strong> Every question studied, every finding, and every conversation
+          in this panel is committed to a private mind that exists only for this research thread.
+          The Arena has its own separate memory — nothing crosses over.
+        </div>
+        <div class="mem-feed" id="memFeed">
+          <div class="mem-empty">No memories yet — start a research run to begin writing.</div>
+        </div>
+      </div>
 
       <!-- topic input -->
       <div class="ask-box">
@@ -536,7 +611,7 @@
   <script>
   const $=s=>document.querySelector(s);
   const PHASES=[["expanding","Expand"],["researching","Research"],["synthesizing","Synthesize"],["done","Report"]];
-  let runId=null, token=null, es=null, sessionId=null, runStatus="idle";
+  let runId=null, token=null, es=null, mindEs=null, sessionId=null, runStatus="idle";
   const newSessionId=()=>"s_"+Math.random().toString(36).slice(2,11);
 
   // ── per-window API key ──────────────────────────────────────────
@@ -594,6 +669,49 @@
     if(["expanding","researching","synthesizing"].includes(s)) c.classList.add("live");
     else if(s==="done") c.classList.add("done");
     c.textContent=s==="researching"?"researching…":s;
+  }
+
+  // ── research memory panel ───────────────────────────────────────
+  async function refreshMemory(){
+    if(!token) return;
+    try{
+      const r=await fetch(`/api/memory?token=${token}&limit=10`);
+      const j=await r.json();
+      const count=j.total||0;
+      $("#memCount").textContent=count+(count===1?" engram":" engrams");
+      const live=(j.engrams||[]).filter(e=>!e.tombstoned);
+      const feed=$("#memFeed");
+      if(!live.length){
+        feed.innerHTML='<div class="mem-empty">No memories yet.</div>';
+        return;
+      }
+      feed.innerHTML=live.map((e,i)=>`
+        <div class="mem-row">
+          <div class="mem-dot${i===0?" new":""}"></div>
+          <div class="mem-text" title="${esc(e.meaning||e.message||"")}">${esc(e.meaning||e.message||"(processing…)")}</div>
+        </div>`).join("");
+      feed.scrollTop=0;
+    }catch(_){}
+  }
+
+  function flashMemCount(){
+    const el=$("#memCount");
+    el.classList.add("writing");
+    setTimeout(()=>el.classList.remove("writing"),1100);
+  }
+
+  function watchMind(){
+    if(mindEs) mindEs.close();
+    mindEs=new EventSource(`/api/stream/${token}`);
+    mindEs.onmessage=ev=>{
+      try{
+        const e=JSON.parse(ev.data);
+        if(e.stage==="committed"){
+          flashMemCount();
+          setTimeout(refreshMemory, 350);
+        }
+      }catch(_){}
+    };
   }
 
   function esc(s){return(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
@@ -659,6 +777,7 @@
       enableChat(true);
       $("#chatsub").textContent="ask anything — even while it researches";
       $("#chatlog").innerHTML="";
+      watchMind();
       listen();
     }catch(e){
       $("#err").textContent="Could not start: "+e.message;
@@ -707,6 +826,7 @@
     $("#goBtn").disabled=false;
     $("#meta").innerHTML=`Done — <b>${run.grounded_count}</b>/${run.findings.length} grounded in live sources · <b>${run.provider}</b>`;
     renderQuestions(run.findings);
+    refreshMemory();
     // show and auto-open the report section
     $("#reportSection").style.display="";
     $("#reportContent").innerHTML=md(run.report);
@@ -741,15 +861,15 @@
       if(!r.ok) throw new Error((await r.json()).detail||r.statusText);
       const j=await r.json(); sessionId=j.session_id;
       ai.querySelector(".b").textContent=j.answer;
+      setTimeout(refreshMemory, 600);
       const m=document.createElement("div");
-      if(j.recalled?.length){
-        m.className="recall";
-        m.textContent="↺ "+j.recalled.length+" memories · "+j.pack_tokens+" tok"
-          +(j.run_status!=="done"?" · still researching":"");
-      } else {
-        m.className="recall miss";
-        m.textContent="↺ no memories recalled — keyword-only (embedding unavailable)";
-      }
+      m.className="recall";
+      const parts=[];
+      if(j.recalled?.length) parts.push(j.recalled.length+" memories");
+      if(j.has_context) parts.push("research loaded");
+      if(j.history_turns>0) parts.push(j.history_turns+" prior turns");
+      if(j.run_status!=="done") parts.push("still researching");
+      m.textContent="↺ "+(parts.length?parts.join(" · "):"context ready");
       ai.appendChild(m);
     }catch(e){
       ai.querySelector(".b").textContent="Error: "+e.message;
