@@ -218,18 +218,22 @@ class Researcher:
             log.warning("study failed for q%d: %s", finding.id, e)
             finding.answer = f"[research-error] could not synthesize this finding: {e}"
 
-        # Commit the finding into memory with question number so "question N" is recallable.
+        # Commit the finding into memory. Wrapped so a storage failure never
+        # prevents the studied event from firing — the UI spinner must always resolve.
         cite = ""
         if sources:
             cite = "\nSources: " + " | ".join(s.cite() for s in sources)
-        await self.engine.remember(
-            self.mind,
-            f"Research question {finding.id}: {finding.question}",
-            finding.answer + cite,
-            session_id=self.session_id,
-            importance_floor=0.6,
-            qwen=self.qwen,
-        )
+        try:
+            await self.engine.remember(
+                self.mind,
+                f"Research question {finding.id}: {finding.question}",
+                finding.answer + cite,
+                session_id=self.session_id,
+                importance_floor=0.6,
+                qwen=self.qwen,
+            )
+        except Exception as e:  # noqa: BLE001
+            log.warning("memory commit failed for q%d (finding still used): %s", finding.id, e)
         await self._emit(
             "studied",
             {"id": finding.id, "question": finding.question, "grounded": finding.grounded,
@@ -286,7 +290,9 @@ class Researcher:
             async with sem:
                 return await self.study(f)
 
-        findings = list(await asyncio.gather(*(_guarded(f) for f in findings)))
+        # return_exceptions=True: one slow/failing question never cancels the others.
+        raw = await asyncio.gather(*(_guarded(f) for f in findings), return_exceptions=True)
+        findings = [r if isinstance(r, Finding) else f for r, f in zip(raw, findings)]
         report = await self.synthesize(topic, findings)
         grounded = sum(1 for f in findings if f.grounded)
         await self._emit("done", {"grounded": grounded, "total": len(findings)})
