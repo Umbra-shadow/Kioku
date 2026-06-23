@@ -224,16 +224,19 @@ class Researcher:
         if sources:
             cite = "\nSources: " + " | ".join(s.cite() for s in sources)
         try:
-            await self.engine.remember(
-                self.mind,
-                f"Research question {finding.id}: {finding.question}",
-                finding.answer + cite,
-                session_id=self.session_id,
-                importance_floor=0.6,
-                qwen=self.qwen,
+            await asyncio.wait_for(
+                self.engine.remember(
+                    self.mind,
+                    f"Research question {finding.id}: {finding.question}",
+                    finding.answer + cite,
+                    session_id=self.session_id,
+                    importance_floor=0.6,
+                    qwen=self.qwen,
+                ),
+                timeout=20.0,
             )
-        except Exception as e:  # noqa: BLE001
-            log.warning("memory commit failed for q%d (finding still used): %s", finding.id, e)
+        except Exception as e:  # noqa: BLE001 — timeout or storage failure; finding still used
+            log.warning("memory commit failed/timed out for q%d (finding still used): %s", finding.id, e)
         await self._emit(
             "studied",
             {"id": finding.id, "question": finding.question, "grounded": finding.grounded,
