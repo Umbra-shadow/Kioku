@@ -1,4 +1,4 @@
-# BUILD PROMPT — KIOKU v1 (記憶)
+# BUILD PROMPT — KIOKU v1
 
 You are Claude Code. Build **Kioku v1** from top to bottom in this folder.
 Kioku is a memory engine that gives any LLM API key a living memory: it

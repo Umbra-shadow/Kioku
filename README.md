@@ -1,4 +1,4 @@
-# Kioku 記憶 — a living memory for any LLM
+# Kioku — a living memory for any LLM
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-d98e2b.svg)](LICENSE)
 [![tests](https://img.shields.io/badge/tests-100%20passing-5fd38b.svg)](engine/tests)

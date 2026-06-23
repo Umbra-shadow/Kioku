@@ -239,7 +239,7 @@ def test_hash64_known_fnv1a_vectors() -> None:
 
 
 def test_keyword_cell_is_deterministic_and_in_range() -> None:
-    for word in ("hanami", "qwen", "記憶", "x" * 500):
+    for word in ("hanami", "qwen", "guardianity", "x" * 500):
         cell = keyword_cell(word)
         assert 0 <= cell <= PLANET_CELL_MASK
         assert cell == keyword_cell(word)

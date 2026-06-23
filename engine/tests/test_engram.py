@@ -42,7 +42,7 @@ def test_terms_are_normalized_and_deduped() -> None:
 
 def test_normalize_term_unicode() -> None:
     assert normalize_term("  Café  Au   Lait ") == "café au lait"
-    assert normalize_term("記憶") == "記憶"
+    assert normalize_term("nairobi") == "nairobi"
 
 
 def test_importance_bounds_enforced() -> None:

@@ -783,8 +783,8 @@ mod kiokud_tests {
 
     #[test]
     fn json_unicode_escapes() {
-        let v = json_parse(r#"{"s":"é😀 記憶"}"#).unwrap();
-        assert_eq!(v.get("s").unwrap().as_str(), Some("é😀 記憶"));
+        let v = json_parse(r#"{"s":"é😀 kioku"}"#).unwrap();
+        assert_eq!(v.get("s").unwrap().as_str(), Some("é😀 kioku"));
         let re = json_parse(&json_to_string(&v)).unwrap();
         assert_eq!(v, re);
     }

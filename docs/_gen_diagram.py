@@ -87,9 +87,6 @@ def arrow(p1, p2, color=AMBER, label=None, dashed=False, width=2):
 
 # Title
 tx = 40
-if F_CJK is not None:
-    d.text((tx, 24), "記憶", font=F_CJK, fill=AMBER)
-    tx += int(d.textlength("記憶", font=F_CJK)) + 16
 d.text((tx, 28), "Kioku v1", font=F_TITLE, fill=AMBER)
 d.text((tx + int(d.textlength("Kioku v1", font=F_TITLE)) + 16, 36),
        "a living memory for any LLM, on Cadran virtual hardware", font=F, fill=DIM)
