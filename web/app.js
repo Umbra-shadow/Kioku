@@ -29,7 +29,7 @@ function humanBytes(n) {
 }
 
 // ---- API key ----------------------------------------------------------------
-function getApiKey() { return sessionStorage.getItem("kioku_api_key") || ""; }
+function getApiKey() { return localStorage.getItem("kioku_api_key") || ""; }
 function apiHeaders(extra) {
   const h = { "Content-Type": "application/json", ...extra };
   const k = getApiKey();
@@ -347,13 +347,13 @@ $("modalBack").addEventListener("click", (e) => { if (e.target === $("modalBack"
 $("apiKeySave").addEventListener("click", () => {
   const val = $("apiKeyInput").value.trim();
   if (val) {
-    sessionStorage.setItem("kioku_api_key", val);
+    localStorage.setItem("kioku_api_key", val);
     $("apiKeyInput").value = "";
     $("apiKeyInput").placeholder = "Key saved ✓";
     toast("API key saved for this session");
     setTimeout(() => { $("apiKeyInput").placeholder = "API key"; }, 3000);
   } else {
-    sessionStorage.removeItem("kioku_api_key");
+    localStorage.removeItem("kioku_api_key");
     toast("API key cleared");
   }
 });

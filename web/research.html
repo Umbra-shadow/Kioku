@@ -615,8 +615,8 @@
   const newSessionId=()=>"s_"+Math.random().toString(36).slice(2,11);
 
   // ── per-window API key ──────────────────────────────────────────
-  const KEY="kioku_qwen_key";
-  function getKey(){return sessionStorage.getItem(KEY)||"";}
+  const KEY="kioku_api_key";
+  function getKey(){return localStorage.getItem(KEY)||localStorage.getItem("kioku_qwen_key")||"";}
   function keyHeaders(){const k=getKey();return k?{"X-Qwen-Key":k}:{};}
   function reflectKey(){
     const k=getKey();
@@ -626,7 +626,7 @@
   }
   function saveKey(){
     const v=$("#qwenKey").value.trim();
-    if(v) sessionStorage.setItem(KEY,v); else sessionStorage.removeItem(KEY);
+    if(v) localStorage.setItem(KEY,v); else localStorage.removeItem(KEY);
     reflectKey();
   }
   $("#saveKey").onclick=saveKey;

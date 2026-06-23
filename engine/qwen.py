@@ -38,6 +38,11 @@ def _is_retryable(exc: BaseException) -> bool:
     return isinstance(exc, (httpx.TransportError, httpx.TimeoutException, _RetryableHTTP))
 
 
+def _is_qwen3_thinking(model: str) -> bool:
+    m = model.lower()
+    return m.startswith("qwen3") or (m.startswith("qwen") and "3." in m)
+
+
 def strip_code_fences(text: str) -> str:
     """Models sometimes wrap JSON in ```json fences despite instructions."""
     t = text.strip()
@@ -81,7 +86,7 @@ class QwenClient:
         *,
         json_mode: bool = False,
         temperature: float = 0.3,
-        max_tokens: int = 16384,
+        max_tokens: int = 8192,
     ) -> str:
         payload: dict[str, Any] = {
             "model": self.config.model,
@@ -91,13 +96,17 @@ class QwenClient:
         }
         if json_mode:
             payload["response_format"] = {"type": "json_object"}
+        if _is_qwen3_thinking(self.config.model):
+            payload["enable_thinking"] = False
         log.info(
             "chat call provider=%s model=%s messages=%d json_mode=%s",
             self.config.provider, self.config.model, len(messages), json_mode,
         )
         data = await self._post("/chat/completions", payload)
         try:
-            return data["choices"][0]["message"]["content"]
+            content = data["choices"][0]["message"].get("content") or \
+                      data["choices"][0]["message"].get("reasoning_content") or ""
+            return content
         except (KeyError, IndexError, TypeError) as e:
             raise LLMError(f"malformed chat response: {e}") from e
 
@@ -106,7 +115,7 @@ class QwenClient:
         messages: list[dict[str, str]],
         *,
         temperature: float = 0.2,
-        max_tokens: int = 16384,
+        max_tokens: int = 8192,
     ) -> dict[str, Any]:
         """Strict-JSON chat: one round trip, one repair attempt on bad JSON."""
         text = await self.chat(

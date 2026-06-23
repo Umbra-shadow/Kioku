@@ -204,7 +204,8 @@ def create_app(engine: KiokuEngine | None = None) -> FastAPI:
         mind = eng.registry.resolve(body.token)
         try:
             result = await eng.turn(
-                mind, body.message, session_id=body.session_id, send_to_both=body.send_to_both
+                mind, body.message, session_id=body.session_id, send_to_both=body.send_to_both,
+                qwen=eng.qwen_for(request.headers.get("X-Qwen-Key")),
             )
         except MindFull as e:
             raise HTTPException(status_code=429, detail=str(e)) from e
