@@ -170,7 +170,7 @@ class Researcher:
                 {"role": "user", "content": f"TOP-LEVEL QUESTION:\n{topic}"},
             ],
             temperature=0.4,
-            max_tokens=16384,
+            max_tokens=8192,
         )
         questions = _norm_questions(raw, n)
         if not questions:
@@ -211,7 +211,7 @@ class Researcher:
                         {"role": "user", "content": user},
                     ],
                     temperature=0.3,
-                    max_tokens=16384,
+                    max_tokens=8192,
                 )
             ).strip()
         except LLMError as e:
@@ -248,7 +248,7 @@ class Researcher:
         corpus = "\n\n".join(blocks)
         # Qwen context is large; if the corpus is huge, the model still handles it,
         # but keep a generous cap to stay within one call.
-        _synth_max = 16384
+        _synth_max = 8192
         report = (
             await self.qwen.chat(
                 [
